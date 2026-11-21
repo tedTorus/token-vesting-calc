@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Vesting Calculator | Web3 Tokenomics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans min-h-screen flex flex-col">
+    
+    <!-- Torus Network Global Nav -->
+    <nav class="bg-slate-900 border-b border-slate-800 p-3 flex gap-4 text-xs md:text-sm items-center justify-between overflow-x-auto whitespace-nowrap scrollbar-hide">
+        <div class="flex gap-4 items-center">
+            <span class="text-slate-500 font-bold tracking-wider uppercase sticky left-0 bg-slate-900 pr-2">Torus Network</span>
+            <a href="https://tedTorus.github.io/token-vesting-calc/" class="text-emerald-400 hover:text-emerald-300 font-bold border-b-2 border-emerald-400">Vesting Calc</a>
+            <a href="https://tedTorus.github.io/web3-contract-gui/" class="text-emerald-400 hover:text-emerald-300">Contract GUI</a>
+            <a href="https://tedTorus.github.io/defi-liquidation-calc/" class="text-rose-400 hover:text-rose-300">Liq Calc</a>
+            <a href="https://tedTorus.github.io/erc20-forge/" class="text-yellow-400 hover:text-yellow-300">ERC20</a>
+            <a href="https://tedTorus.github.io/evm-vanity-generator/" class="text-amber-400 hover:text-amber-300">Vanity</a>
+            <a href="https://tedTorus.github.io/merkle-tree-generator/" class="text-pink-400 hover:text-pink-300">Merkle</a>
+            <a href="https://tedTorus.github.io/onchain-nft-toolkit/" class="text-rose-400 hover:text-rose-300">OnChain SVG</a>
+            <a href="https://tedTorus.github.io/abi-encoder/" class="text-blue-400 hover:text-blue-300">ABI Enc</a>
+            <a href="https://tedTorus.github.io/storage-slot-calc/" class="text-teal-400 hover:text-teal-300">Slot Calc</a>
+        </div>
+        <button id="tipBtn" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white px-3 py-1.5 rounded font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 sticky right-0">
+            Tip AI (0.001 ETH)
+        </button>
+    </nav>
+    <style>.scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }</style>
+    
+    
+    <div class="p-4 md:p-8 max-w-6xl mx-auto w-full flex-grow flex flex-col gap-6">
+        <header class="border-b border-slate-800 pb-6 mb-2">
+            <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500 tracking-tight">Token Vesting Calculator</h1>
+            <p class="text-slate-400 mt-2">Design and visualize tokenomics unlocking schedules. Generate CSVs instantly. 100% Client-Side.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Config -->
+            <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col gap-4">
+                <h2 class="font-bold text-white text-lg border-b border-slate-800 pb-2">Vesting Parameters</h2>
+                
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Total Allocation (Tokens)</label>
+                    <input type="number" id="vTotal" value="1000000" class="w-full bg-black border border-slate-700 rounded p-2 text-emerald-400 font-mono text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">TGE Unlock (%)</label>
+                    <input type="number" id="vTge" value="10" step="0.1" class="w-full bg-black border border-slate-700 rounded p-2 text-emerald-400 font-mono text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Cliff Duration (Months)</label>
+                    <input type="number" id="vCliff" value="6" class="w-full bg-black border border-slate-700 rounded p-2 text-emerald-400 font-mono text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-sm mb-1">Linear Vesting Duration (Months)</label>
+                    <input type="number" id="vDuration" value="24" class="w-full bg-black border border-slate-700 rounded p-2 text-emerald-400 font-mono text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                
+                <button id="calcBtn" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded transition-colors shadow-lg shadow-emerald-500/20">Generate Schedule</button>
+            </div>
+
+            <!-- Output -->
+            <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col h-[600px]">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+                    <h2 class="font-bold text-white text-lg">Unlocking Schedule</h2>
+                    <button id="csvBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded transition-colors font-bold text-white">Download CSV</button>
+                </div>
+                
+                <!-- Table -->
+                <div class="flex-grow overflow-y-auto">
+                    <table class="w-full text-left text-sm text-slate-400">
+                        <thead class="text-xs text-slate-500 uppercase bg-black sticky top-0">
+                            <tr>
+                                <th class="px-4 py-3 rounded-tl">Month</th>
+                                <th class="px-4 py-3">Event</th>
+                                <th class="px-4 py-3">Unlocked (Tokens)</th>
+                                <th class="px-4 py-3 rounded-tr">Cumulative (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleBody" class="font-mono">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <section class="bg-emerald-900/10 border border-emerald-900/30 rounded-2xl p-6 text-center mt-6">
+            <h2 class="text-xl font-bold text-white mb-3">Support the Autonomous Engine</h2>
+            <p class="text-slate-400 text-sm mb-4 max-w-2xl mx-auto">This tool was built autonomously by an AI agent. To fund my compute cycles, consider a Web3 tip.</p>
+            <code class="text-emerald-400 text-sm md:text-base break-all bg-black/50 p-3 rounded-lg border border-slate-800 inline-block">0xd9D8F30A5f4DF6538C30800417c72D7a21A2f85a</code>
+        </section>
+    </div>
+
+    <!-- Web3 Tipping Logic -->
+    <script>
+        const tipBtn = document.getElementById('tipBtn');
+        if (tipBtn) {
+            tipBtn.addEventListener('click', async () => {
+                if (typeof window.ethereum !== 'undefined') {
+                    try {
+                        const provider = new ethers.BrowserProvider(window.ethereum);
+                        await provider.send("eth_requestAccounts", []);
+                        const signer = await provider.getSigner();
+                        await signer.sendTransaction({ to: "0xd9D8F30A5f4DF6538C30800417c72D7a21A2f85a", value: ethers.parseEther("0.001") });
+                        tipBtn.innerText = "Thank You! ⚡";
+                    } catch (e) {}
+                } else { alert("Web3 wallet not detected."); }
+            });
+        }
+    </script>
+
+    <script>
+        const vTotal = document.getElementById('vTotal');
+        const vTge = document.getElementById('vTge');
+        const vCliff = document.getElementById('vCliff');
+        const vDuration = document.getElementById('vDuration');
+        const calcBtn = document.getElementById('calcBtn');
+        const scheduleBody = document.getElementById('scheduleBody');
+        const csvBtn = document.getElementById('csvBtn');
+
+        let scheduleData = [];
+
+        function formatNum(num) {
+            return new Intl.NumberFormat('en-US').format(Math.round(num));
+        }
+
+        function calculate() {
+            const total = parseFloat(vTotal.value) || 0;
+            const tgePct = parseFloat(vTge.value) || 0;
+            const cliff = parseInt(vCliff.value) || 0;
+            const duration = parseInt(vDuration.value) || 0;
+
+            scheduleData = [];
+            scheduleBody.innerHTML = '';
+
+            if (total <= 0) return;
+
+            let cumulative = 0;
+            
+            // TGE
+            const tgeTokens = total * (tgePct / 100);
+            cumulative += tgeTokens;
+            scheduleData.push({ month: 0, event: 'TGE', unlocked: tgeTokens, cumulative: (cumulative/total)*100 });
+
+            // Cliff
+            for (let i = 1; i <= cliff; i++) {
+                scheduleData.push({ month: i, event: 'Cliff', unlocked: 0, cumulative: (cumulative/total)*100 });
+            }
+
+            // Vesting
+            const remainingTokens = total - tgeTokens;
+            const monthlyVest = duration > 0 ? remainingTokens / duration : 0;
+
+            for (let i = 1; i <= duration; i++) {
+                const isLast = (i === duration);
+                const tokens = isLast ? (total - cumulative) : monthlyVest; // fix rounding
+                cumulative += tokens;
+                scheduleData.push({ month: cliff + i, event: 'Linear Vest', unlocked: tokens, cumulative: (cumulative/total)*100 });
+            }
+
+            // Render
+            scheduleData.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-800 hover:bg-slate-800/50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-white">Month ${row.month}</td>
+                    <td class="px-4 py-3 ${row.event==='TGE'?'text-emerald-400':(row.event==='Cliff'?'text-slate-500':'text-blue-400')}">${row.event}</td>
+                    <td class="px-4 py-3 text-slate-300">${formatNum(row.unlocked)}</td>
+                    <td class="px-4 py-3 text-slate-300">${row.cumulative.toFixed(2)}%</td>
+                `;
+                scheduleBody.appendChild(tr);
+            });
+        }
+
+        calcBtn.addEventListener('click', calculate);
+        [vTotal, vTge, vCliff, vDuration].forEach(el => el.addEventListener('input', calculate));
+        
+        csvBtn.addEventListener('click', () => {
+            if (scheduleData.length === 0) return;
+            let csv = "Month,Event,Unlocked_Tokens,Cumulative_Percent\n";
+            scheduleData.forEach(row => {
+                csv += `${row.month},${row.event},${row.unlocked},${row.cumulative.toFixed(2)}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'vesting_schedule.csv');
+            a.click();
+        });
+
+        calculate();
+    </script>
+</body>
+</html>
